@@ -12,8 +12,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "lucide-react": "^0.554.0",
-    "@google/genai": "^1.30.0",
-    "@stripe/stripe-js": "^2.4.0",
+    "openai": "^4.28.0",
     "stripe": "^14.14.0"
   },
   "devDependencies": {
