@@ -1,9 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST
@@ -13,6 +8,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeSecretKey) {
+      return res.status(500).json({ error: 'Stripe not configured' });
+    }
+
     const { analysisId } = req.body;
 
     if (!analysisId) {
@@ -20,40 +21,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get the origin for redirect URLs
-    const origin = req.headers.origin || 'http://localhost:3000';
+    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://copy-of-multas-zero.vercel.app';
 
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: 'Multas Zero - Desbloqueio de Defesa',
-              description: 'Acesso completo: erros detalhados, carta de defesa e guia passo-a-passo',
-            },
-            unit_amount: 245, // 2.45€ in cents
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&analysis_id=${analysisId}`,
-      cancel_url: `${origin}/?canceled=true&analysis_id=${analysisId}`,
-      metadata: {
-        analysisId,
+    // Use Stripe API directly via fetch
+    const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${stripeSecretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
+      body: new URLSearchParams({
+        'payment_method_types[]': 'card',
+        'line_items[0][price_data][currency]': 'eur',
+        'line_items[0][price_data][product_data][name]': 'Multas Zero - Desbloqueio de Defesa',
+        'line_items[0][price_data][product_data][description]': 'Acesso completo: erros detalhados, carta de defesa e guia passo-a-passo',
+        'line_items[0][price_data][unit_amount]': '245',
+        'line_items[0][quantity]': '1',
+        'mode': 'payment',
+        'success_url': `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&analysis_id=${analysisId}`,
+        'cancel_url': `${origin}/?canceled=true&analysis_id=${analysisId}`,
+        'metadata[analysisId]': analysisId,
+      }).toString(),
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Stripe API error:', data);
+      return res.status(500).json({
+        error: 'Stripe error',
+        details: data.error?.message || 'Unknown error'
+      });
+    }
 
     return res.status(200).json({
-      sessionId: session.id,
-      url: session.url
+      sessionId: data.id,
+      url: data.url
     });
-  } catch (error) {
-    console.error('Stripe checkout error:', error);
+  } catch (error: any) {
+    console.error('Checkout error:', error?.message || error);
     return res.status(500).json({
-      error: 'Failed to create checkout session'
+      error: 'Failed to create checkout session',
+      details: error?.message || 'Unknown error'
     });
   }
 }
