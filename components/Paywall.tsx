@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, CheckCircle, Shield, CreditCard, FileText, BookOpen, Loader2 } from 'lucide-react';
+import { Lock, CheckCircle, Shield, CreditCard, FileText, BookOpen, Loader2, AlertCircle } from 'lucide-react';
 import { createCheckoutSession } from '../services/paymentService';
 
 interface Props {
@@ -9,15 +9,23 @@ interface Props {
 
 export const Paywall: React.FC<Props> = ({ analysisId, onError }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleUnlock = async () => {
     setIsLoading(true);
+    setError(null);
+
+    console.log('Starting checkout for analysis:', analysisId);
+
     try {
       await createCheckoutSession(analysisId);
       // Will redirect to Stripe, so loading stays on
-    } catch (error) {
+    } catch (err: any) {
+      console.error('Checkout error:', err);
       setIsLoading(false);
-      onError?.('Erro ao processar pagamento. Tenta novamente.');
+      const errorMsg = err?.message || 'Erro ao processar pagamento. Tenta novamente.';
+      setError(errorMsg);
+      onError?.(errorMsg);
     }
   };
 
@@ -93,6 +101,13 @@ export const Paywall: React.FC<Props> = ({ analysisId, onError }) => {
             <span>Powered by Stripe</span>
           </div>
         </div>
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
+            <AlertCircle className="text-red-500 w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+            <span className="text-red-700 text-sm">{error}</span>
+          </div>
+        )}
 
         <p className="text-gray-400 text-xs mt-4">
           Pagamento único. Sem subscrições. Acesso imediato.

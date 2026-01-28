@@ -54,30 +54,31 @@ export const getUnlockedAnalyses = (): UnlockedStore => {
 
 // Create Stripe checkout session and redirect
 export const createCheckoutSession = async (analysisId: string): Promise<void> => {
-  try {
-    const response = await fetch('/api/create-checkout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ analysisId }),
-    });
+  console.log('createCheckoutSession called with:', analysisId);
 
-    if (!response.ok) {
-      throw new Error('Failed to create checkout session');
-    }
+  const response = await fetch('/api/create-checkout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ analysisId }),
+  });
 
-    const { url } = await response.json();
+  console.log('API response status:', response.status);
 
-    if (url) {
-      // Redirect to Stripe Checkout
-      window.location.href = url;
-    } else {
-      throw new Error('No checkout URL returned');
-    }
-  } catch (error) {
-    console.error('Checkout error:', error);
-    throw error;
+  const data = await response.json();
+  console.log('API response data:', data);
+
+  if (!response.ok) {
+    throw new Error(data.details || data.error || 'Failed to create checkout session');
+  }
+
+  if (data.url) {
+    console.log('Redirecting to:', data.url);
+    // Redirect to Stripe Checkout
+    window.location.href = data.url;
+  } else {
+    throw new Error('No checkout URL returned');
   }
 };
 
