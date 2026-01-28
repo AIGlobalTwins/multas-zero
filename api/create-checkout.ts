@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get the origin for redirect URLs
     const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://copy-of-multas-zero.vercel.app';
 
-    // Use Stripe API directly via fetch
+    // Use Stripe API directly via fetch with pre-created Price
     const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
@@ -32,10 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       body: new URLSearchParams({
         'payment_method_types[]': 'card',
-        'line_items[0][price_data][currency]': 'eur',
-        'line_items[0][price_data][product_data][name]': 'Multas Zero - Desbloqueio de Defesa',
-        'line_items[0][price_data][product_data][description]': 'Acesso completo: erros detalhados, carta de defesa e guia passo-a-passo',
-        'line_items[0][price_data][unit_amount]': '245',
+        'line_items[0][price]': 'price_1SucsdIAtU3FhZay1oOpvnNB',
         'line_items[0][quantity]': '1',
         'mode': 'payment',
         'success_url': `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&analysis_id=${analysisId}`,
